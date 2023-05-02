@@ -4,27 +4,24 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Dict, List
 
+import boto3
 import requests
 from jose import jwk, jwt
 from jose.utils import base64url_decode
 
-import boto3
-from typing import Dict
-
 avp_client = boto3.client('verified-permissions')
+
 
 def lambda_handler(event, context) -> Dict:
     """A function to authorize user access based on the token information and policies stored at Amazon Verified Permissions
-
     Parameters:
+        event (Dict): a dictionary containing the method arn and authorization token
+        (see here: https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-lambda-authorizer-input.html)
 
-    event (Dict): a dictionary containing the method arn and authorization token
-    (see here: https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-lambda-authorizer-input.html)
-
-    context (Lambda Context):  context object ontaining the lambda function context
+        context (Lambda Context):  context object ontaining the lambda function context
 
     Returns:
-    iam policy (Dict): a dictionary representing the IAM policy with the effect (Deny / Allow) to
+        IAM policy (Dict): a dictionary representing the IAM policy with the effect (Deny / Allow) to
 
     More info on CyberArk Identity tokens can be found here:
        id tokens - https://identity-developer.cyberark.com/docs/id-tokens
@@ -62,10 +59,11 @@ def lambda_handler(event, context) -> Dict:
 def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
     """
     This method generates the IAM policy to allow / deny access to the Amazon API Gateway resource
+    Parameters
+        principalId: principal to validate the
+        effect (str): Allow or Deny
+        resource (str): name of the API Gateway resource
 
-    :param principalId: principal to validate the
-    :param effect:
-    :param resource:
     :return: Dictionary containing the IAM policy
     """
     policy = {
