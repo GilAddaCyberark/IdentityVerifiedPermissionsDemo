@@ -93,6 +93,9 @@ def _get_identity_tanant_public_key(oidc_token: str) -> jwk.Key:
     response = requests.get(url=key_url, headers={'Authorization': f'Bearer {oidc_token}'},
                             timeout=60)  # it is advised to cache the key results
     response_dict = json.loads(response.text)
+    # REMOVE THIS - this is actually different, its not just input, it tests for the result. so maybe worth adding a test:
+    if not response.get('leys', []):
+        raise ValueError('keys not found in response')
     key = response_dict['keys'][0]
 
     return jwk.construct(key)
