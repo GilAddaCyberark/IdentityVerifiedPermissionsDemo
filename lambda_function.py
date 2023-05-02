@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -9,19 +10,22 @@ import requests
 from jose import jwk, jwt
 from jose.utils import base64url_decode
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 avp_client = boto3.client('verified-permissions')
 
 
 def lambda_handler(event, context) -> Dict:
-    """A function to authorize user access based on the token information and policies stored at Amazon Verified Permissions
+    """Authorize user access based on the token information and policies stored at Amazon Verified Permissions
     Parameters:
-        event (Dict): a dictionary containing the method arn and authorization token
+        event (Dict): A dictionary containing the method arn and authorization token
         (see here: https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-lambda-authorizer-input.html)
 
-        context (Lambda Context):  context object ontaining the lambda function context
+        context (Lambda Context):  The lambda function context
 
     Returns:
-        IAM policy (Dict): a dictionary representing the IAM policy with the effect (Deny / Allow) to
+        IAM policy (Dict): a dictionary representing the IAM policy with the effect (Deny / Allow)
 
     More info on CyberArk Identity tokens can be found here:
        id tokens - https://identity-developer.cyberark.com/docs/id-tokens
@@ -37,7 +41,7 @@ def lambda_handler(event, context) -> Dict:
 
     # Extract token information
     principalId = claims['sub']
-    print('principal', principalId)
+    logger.info(f'principal: {principalId}')
 
     method_arn = event['methodArn']
     apiGatewayMethod = method_arn.split(':')[5].split('/')
@@ -51,7 +55,7 @@ def lambda_handler(event, context) -> Dict:
 
     # Build the output
     policy_response = generate_iam_policy(principalId=principalId, effect=effect, resource=method_arn)
-    print('response', policy_response)
+    logger.info(f'response: {policy_response}')
 
     return policy_response
 
@@ -60,9 +64,9 @@ def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
     """
     This method generates the IAM policy to allow / deny access to the Amazon API Gateway resource
     Parameters
-        principalId: principal to validate the
+        principalId: Principal to validate
         effect (str): Allow or Deny
-        resource (str): name of the API Gateway resource
+        resource (str): Name of the API Gateway resource
 
     :return: Dictionary containing the IAM policy
     """
@@ -83,12 +87,17 @@ def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
 
 def _get_identity_tanant_public_key(oidc_token: str) -> jwk.Key:
     tenant_url = os.environ.get('TENANT_IDENTITY_URL')
+    # COMMENT: - you always assume success (that items are there), so why not here also? either check or don't check in all.
     if not tenant_url:
         raise ValueError('identity tenant url not set')
     key_url = f'{tenant_url}/OAuth2/Keys/__idaptive_cybr_user_oidc/'
     response = requests.get(url=key_url, headers={'Authorization': f'Bearer {oidc_token}'},
                             timeout=60)  # it is advised to cache the key results
+    if not response.text:
+        raise ValueError('identity response is empty')
     response_dict = json.loads(response.text)
+    if not response.get('keys', []):
+        raise ValueError('keys not found in response')
     key = response_dict['keys'][0]
 
     return jwk.construct(key)
@@ -96,17 +105,17 @@ def _get_identity_tanant_public_key(oidc_token: str) -> jwk.Key:
 
 def verify_oidc_token_signature(oidc_token: str) -> bool:
     """
-    this function gets the token signature public key from CyberArk Identity.
-    and validate the token signature. TBD - Validate time
+    Validate the oidc_token signature aagainst the CyberArk Identity public key.
+    TBD - Validate time
 
     Parameters:
         oidc_token (str): an OIDC token string which contains the user authentication
 
     Returns:
-        result (bool): True of valid
+        result (bool): True if valid, otherwise raises an exception
 
     Raises:
-        Value Error Exception:
+        Value Error Exception
 
     """
 
@@ -141,8 +150,6 @@ def _get_data_entities(token_claims: Dict) -> List:
 
 def check_authorization(principal_id: str, action: str, resource: str, claims: Dict) -> str:
     store_id = os.environ.get('POLICY_STORE_ID')
-    if not store_id:
-        raise ValueError('amazon verified permissions policy store id not set as an environment variable')
 
     principal = Identifier(EntityType='User', EntityId=principal_id)
     resource = Identifier(EntityType='Resource', EntityId=resource)
@@ -166,9 +173,7 @@ def check_authorization(principal_id: str, action: str, resource: str, claims: D
         },
     }
 
-    print(
-        f'store id":{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
-    )
+    logger.info(f'store id":{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}')
     authz_response = avp_client.is_authorized(PolicyStoreIdentifier=store_id, Principal=asdict(principal), Resource=asdict(resource),
                                               Action=action, Context=context, SliceComplement=slice_complement)
 
