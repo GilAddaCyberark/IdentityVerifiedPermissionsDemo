@@ -13,15 +13,15 @@ avp_client = boto3.client('verified-permissions')
 
 
 def lambda_handler(event, context) -> Dict:
-    """A function to authorize user access based on the token information and policies stored at Amazon Verified Permissions
+    """Authorize user access based on the token information and policies stored at Amazon Verified Permissions
     Parameters:
-        event (Dict): a dictionary containing the method arn and authorization token
+        event (Dict): A dictionary containing the method arn and authorization token
         (see here: https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-lambda-authorizer-input.html)
 
-        context (Lambda Context):  context object ontaining the lambda function context
+        context (Lambda Context):  The lambda function context
 
     Returns:
-        IAM policy (Dict): a dictionary representing the IAM policy with the effect (Deny / Allow) to
+        IAM policy (Dict): a dictionary representing the IAM policy with the effect (Deny / Allow)
 
     More info on CyberArk Identity tokens can be found here:
        id tokens - https://identity-developer.cyberark.com/docs/id-tokens
