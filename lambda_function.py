@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -8,6 +9,9 @@ import boto3
 import requests
 from jose import jwk, jwt
 from jose.utils import base64url_decode
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 avp_client = boto3.client('verified-permissions')
 
@@ -37,7 +41,7 @@ def lambda_handler(event, context) -> Dict:
 
     # Extract token information
     principalId = claims['sub']
-    print('principal', principalId)
+    logger.info(f'principal: {principalId}')
 
     method_arn = event['methodArn']
     apiGatewayMethod = method_arn.split(':')[5].split('/')
@@ -51,7 +55,7 @@ def lambda_handler(event, context) -> Dict:
 
     # Build the output
     policy_response = generate_iam_policy(principalId=principalId, effect=effect, resource=method_arn)
-    print('response', policy_response)
+    logger.info(f'response: {policy_response}')
 
     return policy_response
 
@@ -166,9 +170,7 @@ def check_authorization(principal_id: str, action: str, resource: str, claims: D
         },
     }
 
-    print(
-        f'store id":{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
-    )
+    logger.info(f'store id":{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}')
     authz_response = avp_client.is_authorized(PolicyStoreIdentifier=store_id, Principal=asdict(principal), Resource=asdict(resource),
                                               Action=action, Context=context, SliceComplement=slice_complement)
 
