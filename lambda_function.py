@@ -111,10 +111,10 @@ def verify_oidc_token_signature(oidc_token: str) -> bool:
         oidc_token (str): an OIDC token string which contains the user authentication
 
     Returns:
-        result (bool): True of valid
+        result (bool): True if valid, otherwise raises an exception
 
     Raises:
-        Value Error Exception:
+        Value Error Exception
 
     """
 
