@@ -87,6 +87,7 @@ def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
 
 def _get_identity_tanant_public_key(oidc_token: str) -> jwk.Key:
     tenant_url = os.environ.get('TENANT_IDENTITY_URL')
+    # COMMENT: - you always assume success (that items are there), so why not here also? either check or don't check in all.
     if not tenant_url:
         raise ValueError('identity tenant url not set')
     key_url = f'{tenant_url}/OAuth2/Keys/__idaptive_cybr_user_oidc/'
@@ -148,7 +149,6 @@ def _get_data_entities(token_claims: Dict) -> List:
 
 def check_authorization(principal_id: str, action: str, resource: str, claims: Dict) -> str:
     store_id = os.environ.get('POLICY_STORE_ID')
-    # REMOVE THIS - you always assume success (that items are there), so why not here also? either check or don't check in all.
 
     principal = Identifier(EntityType='User', EntityId=principal_id)
     resource = Identifier(EntityType='Resource', EntityId=resource)
