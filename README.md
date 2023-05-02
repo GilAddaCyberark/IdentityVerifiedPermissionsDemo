@@ -1,4 +1,4 @@
-# IdentityVerifiedPermissionsDemo
+# Identity Verified Permissions Demo
 A Lambda authorizer is an API Gateway feature that uses a Lambda function to control access to your API.
 This is a demo project to present API Gateway access control based on Amazon Verified Permissions as the access control engine and
 am API Gateway Lambda authorizer as the method to control the access to API Gateway resources.
