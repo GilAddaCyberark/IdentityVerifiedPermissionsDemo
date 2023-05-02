@@ -9,17 +9,33 @@ from jose import jwk, jwt
 from jose.utils import base64url_decode
 
 import boto3
+from typing import Dict
 
 avp_client = boto3.client('verified-permissions')
 
+def lambda_handler(event, context) -> Dict:
+    """A function to authorize user access based on the token information and policies stored at Amazon Verified Permissions
 
-def lambda_handler(event, context):
-    # Validate oidc token and et claims
+    Parameters:
+
+    event (Dict): a dictionary containing the method arn and authorization token
+    (see here: https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-lambda-authorizer-input.html)
+
+    context (Lambda Context):  context object ontaining the lambda function context
+
+    Returns:
+    iam policy (Dict): a dictionary representing the IAM policy with the effect (Deny / Allow) to
+
+    More info on CyberArk Identity tokens can be found here:
+       id tokens - https://identity-developer.cyberark.com/docs/id-tokens
+       access token - https://identity-developer.cyberark.com/docs/access-tokens
+    """
+
+    # Validate oidc token signature and get the claims in the token.
     token = event['authorizationToken'].replace('Bearer', '').strip()
 
-    # comment the following 2 lines if using a demo token - warning to keep validation on production scenarios.
-    if not verify_oidc_token_signature(token):
-        raise ValueError('invalid bearer token')
+    verify_oidc_token_signature(token)
+
     claims = jwt.get_unverified_claims(token)
 
     # Extract token information
@@ -43,7 +59,15 @@ def lambda_handler(event, context):
     return policy_response
 
 
-def generate_iam_policy(principalId: str, effect: str, resource: str):
+def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
+    """
+    This method generates the IAM policy to allow / deny access to the Amazon API Gateway resource
+
+    :param principalId: principal to validate the
+    :param effect:
+    :param resource:
+    :return: Dictionary containing the IAM policy
+    """
     policy = {
         'principalId': principalId,
         'policyDocument': {
@@ -60,7 +84,7 @@ def generate_iam_policy(principalId: str, effect: str, resource: str):
 
 
 def _get_identity_tanant_public_key(oidc_token: str) -> jwk.Key:
-    tenant_url = os.environ['TENANT_IDENTITY_URL']
+    tenant_url = os.environ.get('TENANT_IDENTITY_URL')
     if not tenant_url:
         raise ValueError('identity tenant url not set')
     key_url = f'{tenant_url}/OAuth2/Keys/__idaptive_cybr_user_oidc/'
@@ -73,9 +97,20 @@ def _get_identity_tanant_public_key(oidc_token: str) -> jwk.Key:
 
 
 def verify_oidc_token_signature(oidc_token: str) -> bool:
-    # More info on CyberArk Identity tokens can be found here:
-    # id tokens - https://identity-developer.cyberark.com/docs/id-tokens
-    # access token - https://identity-developer.cyberark.com/docs/access-tokens
+    """
+    this function gets the token signature public key from CyberArk Identity.
+    and validate the token signature. TBD - Validate time
+
+    Parameters:
+        oidc_token (str): an OIDC token string which contains the user authentication
+
+    Returns:
+        result (bool): True of valid
+
+    Raises:
+        Value Error Exception:
+
+    """
 
     public_key = _get_identity_tanant_public_key(oidc_token=oidc_token)
     message, encoded_sig = oidc_token.rsplit('.', maxsplit=1)
@@ -92,7 +127,7 @@ class Identifier:
     EntityType: str
 
 
-def _get_data_entities(token_claims: dict) -> List:
+def _get_data_entities(token_claims: Dict) -> List:
     data_entities: List[Dict] = []
     # add roles from token
     for role in token_claims['user_roles']:
@@ -107,7 +142,10 @@ def _get_data_entities(token_claims: dict) -> List:
 
 
 def check_authorization(principal_id: str, action: str, resource: str, claims: Dict) -> str:
-    store_id = os.environ['POLICY_STORE_ID']
+    store_id = os.environ.get('POLICY_STORE_ID')
+    if not store_id:
+        raise ValueError('amazon verified permissions policy store id not set as an environment variable')
+
     principal = Identifier(EntityType='User', EntityId=principal_id)
     resource = Identifier(EntityType='Resource', EntityId=resource)
     action = {'ActionType': 'Action', 'ActionId': action}
