@@ -6,6 +6,10 @@ am API Gateway Lambda authorizer as the method to control the access to API Gate
 The access control will use, CyberArk Identity Oauth2.0 Token / ID Token and run the authorization using Amazon Verified Permissions service.
 To create a token-based Lambda authorizer function, we shall create a Python lambda deployment package and upload it as a zip.
 
+
+![Amazon Verified Permissions](architecture.png "Flow and Architecture of the lambda authorizer" )
+
+
 ## Upload the code to the Lambda Authorizer
 to prepare and upload the Lambda authorizer package run the follwign code
 ``` bash
