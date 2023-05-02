@@ -103,8 +103,8 @@ def _get_identity_tanant_public_key(oidc_token: str) -> jwk.Key:
 
 def verify_oidc_token_signature(oidc_token: str) -> bool:
     """
-    this function gets the token signature public key from CyberArk Identity.
-    and validate the token signature. TBD - Validate time
+    Validate the oidc_token signature aagainst the CyberArk Identity public key.
+    TBD - Validate time
 
     Parameters:
         oidc_token (str): an OIDC token string which contains the user authentication
