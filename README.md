@@ -11,9 +11,9 @@ To create a token-based Lambda authorizer function, we shall create a Python lam
 
 
 ## Upload the code to the Lambda Authorizer
-to prepare and upload the Lambda authorizer package run the follwign code
+to prepare and upload the Lambda authorizer package run the follwing code
 ``` bash
-    ./create_lambda_package.sh
+    ./create_lambda_authorizer.sh
 ```
 
 ## The lambda authorizer
