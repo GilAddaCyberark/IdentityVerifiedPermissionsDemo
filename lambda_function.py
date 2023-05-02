@@ -64,9 +64,9 @@ def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
     """
     This method generates the IAM policy to allow / deny access to the Amazon API Gateway resource
     Parameters
-        principalId: principal to validate the
+        principalId: Principal to validate
         effect (str): Allow or Deny
-        resource (str): name of the API Gateway resource
+        resource (str): Name of the API Gateway resource
 
     :return: Dictionary containing the IAM policy
     """
