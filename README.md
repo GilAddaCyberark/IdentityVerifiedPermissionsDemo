@@ -16,8 +16,8 @@ to prepare and upload the Lambda authorizer package run the follwign code
     ./create_lambda_package.sh
 ```
 
-## The Lambda authorizer
-The Lambda Authorizer receives the OIDC token as a bearer token and the API Gateway method we want to protect
+## The lambda authorizer
+The lambda authorizer receives the OIDC token as a bearer token and the API Gateway method we want to protect
 The following environment variables should be set on the Lambda function confiuration:
 TENANT_IDENTITY_URL - the root url of CyberArk Identity account you received
 POLICY_STORE_ID - the id of the Amazon Verified Permissions policy store
