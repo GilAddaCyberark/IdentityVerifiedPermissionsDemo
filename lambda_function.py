@@ -145,8 +145,7 @@ def _get_data_entities(token_claims: Dict) -> List:
 
 def check_authorization(principal_id: str, action: str, resource: str, claims: Dict) -> str:
     store_id = os.environ.get('POLICY_STORE_ID')
-    if not store_id:
-        raise ValueError('amazon verified permissions policy store id not set as an environment variable')
+    # REMOVE THIS - you always assume success (that items are there), so why not here also? either check or don't check in all.
 
     principal = Identifier(EntityType='User', EntityId=principal_id)
     resource = Identifier(EntityType='Resource', EntityId=resource)
