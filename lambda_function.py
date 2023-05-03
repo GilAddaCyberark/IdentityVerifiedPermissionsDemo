@@ -5,10 +5,11 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Dict, List
 
-import boto3
 import requests
 from jose import jwk, jwt
 from jose.utils import base64url_decode
+
+import boto3
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -87,10 +88,10 @@ def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
 def _get_identity_tanant_public_key(oidc_token: str, identity_public_key_url: str) -> jwk.Key:
     response = requests.get(url=identity_public_key_url, headers={'Authorization': f'Bearer {oidc_token}'},
                             timeout=60)  # it is advised to cache the key results
-    logger.info(f"response status is: {response.status_code}")
+    logger.info(f'response status is: {response.status_code}')
     if not response.text:
         raise ValueError('identity response is empty')
-    logger.info(f"response text is: {response.text}")
+    logger.info(f'response text is: {response.text}')
     response_dict = json.loads(response.text)
     if not response_dict.get('keys', []):
         raise ValueError('keys not found in response')
@@ -176,7 +177,9 @@ def check_authorization(principal_id: str, action: str, resource: str, claims: D
         },
     }
 
-    logger.info(f'store id":{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}')
+    logger.info(
+        f'store id":{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
+    )
     authz_response = avp_client.is_authorized(PolicyStoreIdentifier=store_id, Principal=asdict(principal), Resource=asdict(resource),
                                               Action=action, Context=context, SliceComplement=slice_complement)
 

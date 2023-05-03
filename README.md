@@ -1,6 +1,6 @@
 # Identity Verified Permissions Demo
 
-**Disclaimer:**  This is not production grade code. Do not use it as-is for production systems. 
+**Disclaimer:**  This is not production grade code. Do not use it as-is for production systems.
 
 A Lambda authorizer is an API Gateway feature that uses a Lambda function to control access to your API.
 This is a demo project to present API Gateway access control based on Amazon Verified Permissions as the access control engine and
@@ -18,17 +18,17 @@ to prepare and upload the Lambda authorizer package run the follwing code
 ``` bash
     ./prepare_authorizer_package.sh
 ```
-## Create the API Gateway with an AVP Autorizer and custom lambda 
+## Create the API Gateway with an AVP Autorizer and custom lambda
 Set your bucket name in the command below to prepare the package for deploy
 ```commandline
 aws cloudformation package --template avp-authorizer-cf-template.yaml \
  --s3-bucket <your bucket name> --output-template-file cf_package.yaml
 ```
-Deploy the Cloud Formation template 
-Set your Amazon Verified Permissions policy store id, identity-tenant-url 
+Deploy the Cloud Formation template
+Set your Amazon Verified Permissions policy store id, identity-tenant-url
 ```commandline
 aws cloudformation deploy --template-file cf_package.yaml \
---stack-name avp-authorizer-stack --capabilities CAPABILITY_NAMED_IAM \ 
+--stack-name avp-authorizer-stack --capabilities CAPABILITY_NAMED_IAM \
 --parameter-overrides policyStoreID='<your policy store id>' IdentityTenantUrl='<your identity url>'
 ```
 
@@ -55,5 +55,5 @@ curl https://<api-id>.execute-api.<regiion>.amazonaws.com/test/protected-resourc
 you can generate a self-signed token to test the integration using this command
 pre-requisites cryptography and python-jose are installed
 ```commandline
-python generate_token.py 
+python generate_token.py
 ```
