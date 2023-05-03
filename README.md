@@ -40,6 +40,3 @@ The logic of the lambda performs:
 * Formalize the token claims to Amazon Verified Permissions format
 * Invokes an authorization check using Amazon Verified Permissions and gets the decision
 * Converts the decision to an IAM Policy format and returns it (to the API Gateway)
-
-
-# Maybe you can offload some of the things to here from the blog? e.g. you can add a second about cedar perhaps? and point to it.
