@@ -13,10 +13,20 @@ To create a token-based Lambda authorizer function, we shall create a Python Lam
 ![Amazon Verified Permissions](architecture.png "Flow and Architecture of the lambda authorizer" )
 
 
-## Upload the code to the Lambda Authorizer
+## Prepaee the Lambda Authorizer code and dependency in temp dir
 to prepare and upload the Lambda authorizer package run the follwing code
 ``` bash
-    ./create_lambda_authorizer.sh
+    ./prepare_authorizer_package.sh
+```
+## Create the API Gateway with an AVP Autorizer and custom lambda 
+Set your bucket name in the command below to prepare the package for deploy
+```commandline
+aws cloudformation package --template avp-authorizer-cf-template.yaml --s3-bucket <your bucket name> --output-template-file cf_package.yaml
+```
+Deploy the Cloud Formation template 
+Set your Amazon Verified Permissions policy store id, identity-tenant-url 
+```commandline
+aws cloudformation deploy --template-file cf_package.yaml --stack-name avp-authorizer-stack --capabilities CAPABILITY_NAMED_IAM --parameter-overrides policyStoreID='<your policy store id>',IdentityTenantUrl='<your identity url>'
 ```
 
 ## The lambda authorizer
