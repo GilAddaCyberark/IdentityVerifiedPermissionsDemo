@@ -21,12 +21,15 @@ to prepare and upload the Lambda authorizer package run the follwing code
 ## Create the API Gateway with an AVP Autorizer and custom lambda 
 Set your bucket name in the command below to prepare the package for deploy
 ```commandline
-aws cloudformation package --template avp-authorizer-cf-template.yaml --s3-bucket <your bucket name> --output-template-file cf_package.yaml
+aws cloudformation package --template avp-authorizer-cf-template.yaml \
+ --s3-bucket <your bucket name> --output-template-file cf_package.yaml
 ```
 Deploy the Cloud Formation template 
 Set your Amazon Verified Permissions policy store id, identity-tenant-url 
 ```commandline
-aws cloudformation deploy --template-file cf_package.yaml --stack-name avp-authorizer-stack --capabilities CAPABILITY_NAMED_IAM --parameter-overrides policyStoreID='<your policy store id>',IdentityTenantUrl='<your identity url>'
+aws cloudformation deploy --template-file cf_package.yaml \
+--stack-name avp-authorizer-stack --capabilities CAPABILITY_NAMED_IAM \ 
+--parameter-overrides policyStoreID='<your policy store id>' IdentityTenantUrl='<your identity url>'
 ```
 
 ## The lambda authorizer
@@ -40,3 +43,17 @@ The logic of the lambda performs:
 * Formalize the token claims to Amazon Verified Permissions format
 * Invokes an authorization check using Amazon Verified Permissions and gets the decision
 * Converts the decision to an IAM Policy format and returns it (to the API Gateway)
+
+
+## Testing the setup
+use a web client such as curl with the API Gateway url and the id token receved from identity
+run the command example below
+```commandline
+curl https://<api-id>.execute-api.<regiion>.amazonaws.com/test/protected-resource -X POST -H "Authorization: Bearer <oidc token>.."
+```
+
+you can generate a self-signed token to test the integration using this command
+pre-requisites cryptography and python-jose are installed
+```commandline
+python generate_token.py 
+```

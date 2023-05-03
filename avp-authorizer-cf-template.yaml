@@ -61,7 +61,10 @@ Resources:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: Sample API Gateway
-      Description: this is a demo protected resource API
+      Description: Sample API Gateway Integration with a Lambda Autorizer baszed on Amazon Verified Permissions and CyberArk Identity
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
 
   ProtectedResource:
     Type: AWS::ApiGateway::Resource
@@ -91,6 +94,7 @@ Resources:
       - ProtectedPostMethod
     Properties:
       RestApiId: !Ref SampleRestApi
+      StageName: test
 
   AmazonVerifiedPermissionTokenAuthorizer:
     Type: AWS::ApiGateway::Authorizer
@@ -106,7 +110,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: avp-authorizer
-      Handler: lambda_handler
+      Handler: lambda_function.lambda_handler
       Role: !GetAtt AVPAuthorizerLambdaExecutionRole.Arn
       Code: package/
       Runtime: python3.9

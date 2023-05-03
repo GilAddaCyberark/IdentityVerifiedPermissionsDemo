@@ -36,7 +36,6 @@ def lambda_handler(event, context) -> Dict:
     token = event['authorizationToken'].replace('Bearer', '').strip()
 
     verify_oidc_token_signature(token)
-
     claims = jwt.get_unverified_claims(token)
 
     # Extract token information
@@ -85,18 +84,15 @@ def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
     return policy
 
 
-def _get_identity_tanant_public_key(oidc_token: str) -> jwk.Key:
-    tenant_url = os.environ.get('TENANT_IDENTITY_URL')
-    # COMMENT: - you always assume success (that items are there), so why not here also? either check or don't check in all.
-    if not tenant_url:
-        raise ValueError('identity tenant url not set')
-    key_url = f'{tenant_url}/OAuth2/Keys/__idaptive_cybr_user_oidc/'
-    response = requests.get(url=key_url, headers={'Authorization': f'Bearer {oidc_token}'},
+def _get_identity_tanant_public_key(oidc_token: str, identity_public_key_url: str) -> jwk.Key:
+    response = requests.get(url=identity_public_key_url, headers={'Authorization': f'Bearer {oidc_token}'},
                             timeout=60)  # it is advised to cache the key results
+    logger.info(f"response status is: {response.status_code}")
     if not response.text:
         raise ValueError('identity response is empty')
+    logger.info(f"response text is: {response.text}")
     response_dict = json.loads(response.text)
-    if not response.get('keys', []):
+    if not response_dict.get('keys', []):
         raise ValueError('keys not found in response')
     key = response_dict['keys'][0]
 
@@ -119,7 +115,14 @@ def verify_oidc_token_signature(oidc_token: str) -> bool:
 
     """
 
-    public_key = _get_identity_tanant_public_key(oidc_token=oidc_token)
+    tenant_url = os.environ.get('TENANT_IDENTITY_URL')
+    if not tenant_url:
+        # warning: this is a logic set POC mode, in production you should validate the token signature
+        # to bypass the signature chcek set the identity server as empty
+        return True
+    key_url = f'{tenant_url}/OAuth2/Keys/__idaptive_cybr_user_oidc/'
+
+    public_key = _get_identity_tanant_public_key(oidc_token=oidc_token, identity_public_key_url=key_url)
     message, encoded_sig = oidc_token.rsplit('.', maxsplit=1)
     decoded_signature = base64url_decode(encoded_sig.encode('utf-8'))
     if not public_key.verify(message.encode('utf8'), decoded_signature):
