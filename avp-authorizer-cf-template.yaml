@@ -105,9 +105,6 @@ Resources:
       RestApiId: !Ref SampleRestApi
       AuthorizerUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AVPAuthorizerLambdaFunction.Arn}/invocations"
       AuthorizerResultTtlInSeconds: 300
-      AuthorizerCredentials: !GetAtt 
-        - AVPAuthorizerLambdaExecutionRole
-        - Arn
     DependsOn:
       - AVPAuthorizerLambdaFunction
       - AVPAuthorizerLambdaExecutionRole
@@ -136,6 +133,7 @@ Resources:
             Principal:
               Service:
                 - lambda.amazonaws.com
+                - apigateway.amazonaws.com
             Action: sts:AssumeRole
       Policies:
         - PolicyName: LogLambdaPolicy
@@ -156,3 +154,11 @@ Resources:
                 Action:
                   - verifiedpermissions:IsAuthorized
                 Resource: '*'
+
+  AVPAuthorizerLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AVPAuthorizerLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SampleRestApi}/*/*"
