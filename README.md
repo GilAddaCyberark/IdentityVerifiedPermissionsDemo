@@ -49,7 +49,7 @@ The logic of the lambda performs:
 use a web client such as curl with the API Gateway url and the id token receved from identity
 run the command example below
 ```commandline
-curl https://<api-id>.execute-api.<regiion>.amazonaws.com/test/protected-resource -X POST -H "Authorization: Bearer <oidc token>.."
+curl https://<api-id>.execute-api.<region>.amazonaws.com/test/protected-resource -X POST -H "Authorization: Bearer <oidc token>.."
 ```
 
 you can generate a self-signed token to test the integration using this command

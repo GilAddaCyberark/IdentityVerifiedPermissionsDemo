@@ -17,17 +17,17 @@ Resources:
     Properties:
       Code:
         ZipFile: |
-          def handler(event,context):
-            return {
-              'body': 'Hello there {0}'.format(event['requestContext']['identity']['sourceIp']),
-              'headers': {
-                'Content-Type': 'text/plain'
-              },
-              'statusCode': 200
-            }
+          import json
+          
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Hello from Lambda!')
+              }
+
       Description: This is an example of a service lambda that is protected by Verified Permisions Authorizer
       FunctionName: !Ref lambdaFunctionName
-      Handler: index.handler
+      Handler: index.lambda_handler
       MemorySize: 128
       Role: !GetAtt SampleServiceLambdaIAMRole.Arn
       Runtime: python3.9
@@ -82,7 +82,7 @@ Resources:
       AuthorizationType: CUSTOM
       AuthorizerId: !Ref AmazonVerifiedPermissionTokenAuthorizer
       Integration:
-        Type: AWS_PROXY
+        Type: AWS
         IntegrationHttpMethod: POST
         Uri: !Sub
           - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArn}/invocations
@@ -104,7 +104,7 @@ Resources:
       IdentitySource: method.request.header.Authorization
       RestApiId: !Ref SampleRestApi
       AuthorizerUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AVPAuthorizerLambdaFunction.Arn}/invocations"
-      AuthorizerResultTtlInSeconds: 300
+      AuthorizerResultTtlInSeconds: 0
 
   AVPAuthorizerLambdaFunction:
     Type: AWS::Lambda::Function
