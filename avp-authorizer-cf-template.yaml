@@ -133,7 +133,6 @@ Resources:
             Principal:
               Service:
                 - lambda.amazonaws.com
-                - apigateway.amazonaws.com
             Action: sts:AssumeRole
       Policies:
         - PolicyName: LogLambdaPolicy
@@ -157,8 +156,22 @@ Resources:
 
   AVPAuthorizerLambdaPermission:
     Type: AWS::Lambda::Permission
+    DependsOn:
+      - SampleRestApi
+      - AVPAuthorizerLambdaFunction
     Properties:
       FunctionName: !Ref AVPAuthorizerLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SampleRestApi}/*/*"
+
+  SampleServiceLambdaPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - SampleRestApi
+      - SampleServiceLambdaFunction
+    Properties:
+      FunctionName: !Ref SampleServiceLambdaFunction
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SampleRestApi}/*/*"
