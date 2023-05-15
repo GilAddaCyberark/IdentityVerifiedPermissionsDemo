@@ -16,7 +16,7 @@ Resources:
     Type: AWS::ApiGateway::RestApi
     Properties:
       Name: Sample API Gateway
-      Description: Sample API Gateway Integration with a Lambda Autorizer baszed on
+      Description: Sample API Gateway Integration with a Lambda Autorizer based on
         Amazon Verified Permissions and CyberArk Identity
       EndpointConfiguration:
         Types:
@@ -39,10 +39,7 @@ Resources:
       FunctionName: !Ref lambdaFunctionName
       Handler: index.lambda_handler
       MemorySize: 128
-      Role:
-        Fn::GetAtt:
-        - SampleServiceLambdaIAMRole
-        - Arn
+      Role: !GetAtt SampleServiceLambdaIAMRole.Arn
       Runtime: python3.9
     DependsOn:
     - SampleServiceLambdaIAMRole
@@ -59,7 +56,6 @@ Resources:
           Principal:
             Service:
             - lambda.amazonaws.com
-            - apigateway.amazonaws.com
       Policies:
       - PolicyName: LogLambdaPolicy
         PolicyDocument:
@@ -70,51 +66,32 @@ Resources:
             - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
-            Resource: '*'
-      - PolicyName: APIGWPolicy
-        PolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Action: lambda:InvokeFunction
-            Resource: '*'
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+            Resource:
+              - '*'
 
   ProtectedResource:
     Type: AWS::ApiGateway::Resource
     Properties:
-      ParentId:
-        Fn::GetAtt:
-        - SampleRestApi
-        - RootResourceId
+      ParentId: !GetAtt SampleRestApi.RootResourceId
       PathPart: protected-resource
-      RestApiId:
-        Ref: SampleRestApi
+      RestApiId: !Ref SampleRestApi
     DependsOn:
     - SampleRestApi
 
   ProtectedPostMethod:
     Type: AWS::ApiGateway::Method
     Properties:
-      RestApiId:
-        Ref: SampleRestApi
-      ResourceId:
-        Ref: ProtectedResource
+      RestApiId: !Ref SampleRestApi
+      ResourceId: !Ref ProtectedResource
       HttpMethod: POST
       AuthorizationType: CUSTOM
-      AuthorizerId:
-        Ref: AmazonVerifiedPermissionTokenAuthorizer
+      AuthorizerId: !Ref AmazonVerifiedPermissionTokenAuthorizer
       Integration:
         Type: AWS_PROXY
         IntegrationHttpMethod: POST
-        Uri:
-          Fn::Sub:
+        Uri: !Sub
           - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArn}/invocations
-          - lambdaArn:
-              Fn::GetAtt:
-              - SampleServiceLambdaFunction
-              - Arn
+          - lambdaArn: !GetAtt SampleServiceLambdaFunction.Arn
     DependsOn:
       - SampleRestApi
       - ProtectedResource
@@ -123,8 +100,7 @@ Resources:
   AVPAPIGatewayDeployment:
     Type: AWS::ApiGateway::Deployment
     Properties:
-      RestApiId:
-        Ref: SampleRestApi
+      RestApiId: !Ref SampleRestApi
       StageName: test
     DependsOn:
       - ProtectedPostMethod
@@ -135,34 +111,26 @@ Resources:
       Name: AmazonVerifiedPermissionTokenAuthorizer
       Type: TOKEN
       IdentitySource: method.request.header.Authorization
-      RestApiId:
-        Ref: SampleRestApi
-      AuthorizerUri:
-        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AVPAuthorizerLambdaFunction.Arn}/invocations
+      RestApiId: !Ref SampleRestApi
+      AuthorizerUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AVPAuthorizerLambdaFunction.Arn}/invocations"
       AuthorizerResultTtlInSeconds: 300
-      AuthorizerCredentials: !GetAtt 
-        - AVPAuthorizerLambdaExecutionRole
-        - Arn
     DependsOn:
-    - SampleRestApi
+      - SampleRestApi
+      - AVPAuthorizerLambdaFunction
+      - AVPAuthorizerLambdaExecutionRole
 
   AVPAuthorizerLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: avp-authorizer
       Handler: lambda_function.lambda_handler
-      Role:
-        Fn::GetAtt:
-        - AVPAuthorizerLambdaExecutionRole
-        - Arn
+      Role: !GetAtt AVPAuthorizerLambdaExecutionRole.Arn
       Code: package/
       Runtime: python3.9
       Environment:
         Variables:
-          TENANT_IDENTITY_URL:
-            Ref: IdentityTenantUrl
-          POLICY_STORE_ID:
-            Ref: policyStoreID
+          TENANT_IDENTITY_URL: !Ref IdentityTenantUrl
+          POLICY_STORE_ID: !Ref policyStoreID
     DependsOn:
     - AVPAuthorizerLambdaExecutionRole
 
@@ -177,24 +145,45 @@ Resources:
           Principal:
             Service:
             - lambda.amazonaws.com
-            - apigateway.amazonaws.com
           Action: sts:AssumeRole
       Policies:
-        - PolicyName: LogLambdaPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource: '*'
-        - PolicyName: AVPLambdaPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - verifiedpermissions:IsAuthorized
-                Resource: '*'
+      - PolicyName: LogLambdaPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+      - PolicyName: AVPLambdaPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: verifiedpermissions:IsAuthorized
+            Resource: '*'
+
+  AVPAuthorizerLambdaPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - SampleRestApi
+      - AVPAuthorizerLambdaFunction
+    Properties:
+      FunctionName: !Ref AVPAuthorizerLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SampleRestApi}/*/*"
+
+  SampleServiceLambdaPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - SampleRestApi
+      - SampleServiceLambdaFunction
+    Properties:
+      FunctionName: !Ref SampleServiceLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SampleRestApi}/*/*"
+      
