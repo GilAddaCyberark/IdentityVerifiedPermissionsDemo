@@ -50,7 +50,7 @@ def main():
     print(f'token: {token}')
     url =  f'{args.gw_url}/protected-resource'
     headers = { 'Authorization' : f'Bearer {token}' }
-    response = requests.api.post(url,data={}, headers=headers)
+    response = requests.api.post(url,json={}, headers=headers)
     print(response)
 
 

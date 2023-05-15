@@ -59,18 +59,27 @@ Resources:
           Principal:
             Service:
             - lambda.amazonaws.com
+            - apigateway.amazonaws.com
       Policies:
-      - PolicyDocument:
-          Version: 2012-10-17
+      - PolicyName: LogLambdaPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
           Statement:
-          - Action:
+          - Effect: Allow
+            Action:
             - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
-            Effect: Allow
-            Resource:
-            - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${lambdaFunctionName}:*
-        PolicyName: lambda
+            Resource: '*'
+      - PolicyName: APIGWPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource: '*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
 
   ProtectedResource:
     Type: AWS::ApiGateway::Resource
@@ -97,7 +106,7 @@ Resources:
       AuthorizerId:
         Ref: AmazonVerifiedPermissionTokenAuthorizer
       Integration:
-        Type: AWS
+        Type: AWS_PROXY
         IntegrationHttpMethod: POST
         Uri:
           Fn::Sub:
@@ -109,6 +118,7 @@ Resources:
     DependsOn:
       - SampleRestApi
       - ProtectedResource
+      - SampleServiceLambdaFunction
 
   AVPAPIGatewayDeployment:
     Type: AWS::ApiGateway::Deployment
@@ -146,9 +156,7 @@ Resources:
         Fn::GetAtt:
         - AVPAuthorizerLambdaExecutionRole
         - Arn
-      Code:
-        S3Bucket: gil-static-s3
-        S3Key: 854b43f2a5f020425e2e0621f86012c0
+      Code: package/
       Runtime: python3.9
       Environment:
         Variables:
