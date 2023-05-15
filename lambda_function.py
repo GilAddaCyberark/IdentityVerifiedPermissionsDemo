@@ -178,7 +178,7 @@ def check_authorization(principal_id: str, action: str, resource: str, claims: D
     }
 
     logger.info(
-        f'store id":{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
+        f'store id:{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
     )
     authz_response = avp_client.is_authorized(PolicyStoreIdentifier=store_id, Principal=asdict(principal), Resource=asdict(resource),
                                               Action=action, Context=context, SliceComplement=slice_complement)

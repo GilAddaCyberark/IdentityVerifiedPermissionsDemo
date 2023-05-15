@@ -170,6 +170,7 @@ Resources:
           Principal:
             Service:
             - lambda.amazonaws.com
+            - apigateway.amazonaws.com
           Action: sts:AssumeRole
       Policies:
       - PolicyName: LogLambdaPolicy
@@ -187,6 +188,12 @@ Resources:
           Version: '2012-10-17'
           Statement:
           - Effect: Allow
-            Action:
-            - verifiedpermissions:IsAuthorized
+            Action: verifiedpermissions:IsAuthorized
+            Resource: '*'
+      - PolicyName: APIGWPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action: execute-api:Invoke
             Resource: '*'
