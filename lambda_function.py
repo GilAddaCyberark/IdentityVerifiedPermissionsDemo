@@ -86,6 +86,8 @@ def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
 
 
 def _get_identity_tanant_public_key(oidc_token: str, identity_public_key_url: str) -> jwk.Key:
+
+    logger.info(f' request to get token publick key via: {identity_public_key_url}')
     response = requests.get(url=identity_public_key_url, headers={'Authorization': f'Bearer {oidc_token}'},
                             timeout=60)  # it is advised to cache the key results
     logger.info(f'response status is: {response.status_code}')
@@ -178,7 +180,7 @@ def check_authorization(principal_id: str, action: str, resource: str, claims: D
     }
 
     logger.info(
-        f'store id":{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
+        f'store id:{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
     )
     authz_response = avp_client.is_authorized(PolicyStoreIdentifier=store_id, Principal=asdict(principal), Resource=asdict(resource),
                                               Action=action, Context=context, SliceComplement=slice_complement)
