@@ -1,5 +1,12 @@
 #!/bin/bash
 set -e
+# validate args
+if [ "$#" -ne 3 ]; then
+    echo "Illegal number of parameters. Enter the follwing command and args:"
+    echo "$0 <s3 bucket name> <verified permissions policy store id> <cyberark identity url>"
+    exit 1
+fi
+
 # prepare package to deploy: copy function code and install packages
 mkdir -p package
 cp ./lambda_function.py package
