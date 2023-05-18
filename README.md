@@ -38,8 +38,11 @@ To invoke the script run:
 ```bash
 python access-demo-resource.py -u <username> -p <password> -i <identity url> -g  <resource url>
 ```
-the user name should in this pattern: user_name@cyberark_identity_domain. 
+
+### Comments 
+1. the user name should be in this pattern: user_name@cyberark_identity_domain. 
 e.g. my_user@trialdomain
+2. You can change the user attributes. e.g. user_dept = 'dev' and see you are unauthorized to do so.
 
 In case you are authorized, the result message is “Hello from Lambda!” 
 otherwise, you will get “User is not authorized to access this resource with an explicit deny”. 
