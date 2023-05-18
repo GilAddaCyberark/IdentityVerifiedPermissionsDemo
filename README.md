@@ -32,7 +32,7 @@ For example
 ## Testing the setup
 Install the prerequisites
 ```bash
-pip install requests==2.29.0 requests-oauth2client
+pip install requests==2.29.0 requests-oauth2client python-jose
 ```
 To invoke the script run:  
 ```bash
