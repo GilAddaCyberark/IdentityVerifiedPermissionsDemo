@@ -47,8 +47,11 @@ def main():
 
     # get user id from claims
     claims = jwt.get_unverified_claims(token)
+
     user_id = claims['sub']
     print (f'user id: {user_id}')
+    print (f'user claims are: {claims}')
+
 
     # get user attributes
     attributes = get_identity_user_attributes(tenant_url=args.identity_url, token = token , user_id = user_id)
@@ -68,7 +71,7 @@ def main():
     else:
         print(f'unexpected error occurred: {response.status_code}')
 
-        print(f'api response is\n{response.text}\n')
+    print(f'api response is\n{response.text}\n')
 
 if __name__ == "__main__":
     main()

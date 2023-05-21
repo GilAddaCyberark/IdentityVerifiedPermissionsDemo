@@ -123,6 +123,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: avp-authorizer
+      Description: This is an example for Amazon Verfied Permissions Token Authorizer
       Handler: lambda_function.lambda_handler
       Role: !GetAtt AVPAuthorizerLambdaExecutionRole.Arn
       Code: package/
