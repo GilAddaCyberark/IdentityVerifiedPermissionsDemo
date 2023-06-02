@@ -67,7 +67,7 @@ def main():
     if response.status_code == HTTPStatus.OK:
         print(f'you are authorized')
     elif response.status_code == HTTPStatus.FORBIDDEN:
-        print(f'you are un-authorized')
+        print(f'you are not authorized')
     else:
         print(f'unexpected error occurred: {response.status_code}')
 
