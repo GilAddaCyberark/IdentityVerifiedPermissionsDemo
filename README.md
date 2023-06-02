@@ -9,56 +9,49 @@ am API Gateway Lambda authorizer as the method to control the access to API Gate
 The access control will use CyberArk Identity Oauth2.0 Token / ID Token and run the authorization using the Amazon Verified Permissions service.
 To create a token-based Lambda authorizer function, we shall create a Python Lambda deployment package and upload it as a zip.
 
-
 ![Amazon Verified Permissions](architecture.png "Flow and Architecture of the lambda authorizer" )
 
-
-## Prepaee the Lambda Authorizer code and dependency in temp dir
-to prepare and upload the Lambda authorizer package run the follwing code
+## Prepare an Amazon API Gateway with a token authorizer and a sample protected resource
+To create the API Gateway with the token authorizer code and a resource
 ``` bash
-    ./prepare_authorizer_package.sh
-```
-## Create the API Gateway with an AVP Autorizer and custom lambda
-Set your bucket name in the command below to prepare the package for deploy
-```commandline
-export BUCKET_NAME=<your bucket name>
-
-aws cloudformation package --template avp-authorizer-cf-template.yaml \
- --s3-bucket $BUCKET_NAME --output-template-file cf-package.yaml
-```
-Deploy the Cloud Formation template
-Set your Amazon Verified Permissions policy store id, identity-tenant-url
-```commandline
-export POLICY_STORE_ID='<your policy store id>'
-export IDENTITY_URL='<your identity url>'
-
-aws cloudformation deploy --template-file cf-package.yaml \
---stack-name avp-authorizer-stack --capabilities CAPABILITY_NAMED_IAM \
---parameter-overrides policyStoreID=$POLICY_STORE_ID IdentityTenantUrl=$IDENTITY_URL
+    ./prepare_authorizer_package.sh <s3 bucket name> <verified permissions policy store id> <cyberark identity url>
 ```
 
-## The lambda authorizer
-The lambda authorizer receives the OIDC token as a bearer token and the API Gateway method we want to protect.
-The following environment variables should be set on the Lambda function confiuration:
-TENANT_IDENTITY_URL - the root url of CyberArk Identity account you received
-POLICY_STORE_ID - the id of the Amazon Verified Permissions policy store
+For example 
+``` bash
+    ./prepare_authorizer_package.sh avp-demo-bucket  ps-1234-5678 https://xxxx.id.integration-cyberark.cloud/
+```
 
-The logic of the lambda performs:
+### Lambda Authorizer token authorizer performs:
 * Validate token signature and extracts the claims in it
+* Retrieve user attributes
 * Formalize the token claims to Amazon Verified Permissions format
 * Invokes an authorization check using Amazon Verified Permissions and gets the decision
 * Converts the decision to an IAM Policy format and returns it (to the API Gateway)
 
-
 ## Testing the setup
-use a web client such as curl with the API Gateway url and the id token receved from identity
-run the command example below
-```commandline
-curl https://<api-id>.execute-api.<region>.amazonaws.com/test/protected-resource -X POST -H "Authorization: Bearer <oidc token>.."
+Install the prerequisites
+```bash
+pip install requests==2.29.0 requests-oauth2client python-jose
+```
+To invoke the script run:  
+```bash
+python access-demo-resource.py -u <username> -p <password> -i <identity url> -g  <resource url>
 ```
 
-you can generate a self-signed token to test the integration using this command
-pre-requisites cryptography and python-jose are installed
-```commandline
-python generate_token.py
-```
+### Comments 
+1. the user name should be in this pattern: user_name@cyberark_identity_domain. 
+e.g. my_user@trialdomain
+2. You can change the user attributes. e.g. user_dept = 'dev' and see you are unauthorized to do so.
+
+In case you are authorized, the result message is “Hello from Lambda!” 
+otherwise, you will get “User is not authorized to access this resource with an explicit deny”. 
+
+### Troubleshooting
+These are the common steps to troubleshoot:
+1. If you get "Could not resolve host, it may be a wrong API Gateway address.
+2. Review AWS CloudWatch Logs of the Lambda authorizer function. Verify a call on the time you performed the request.
+3. Check that the logs contain the inputs to the Lambda authorizer as the authorization header and method ARN.
+4. Check the result of the Lambda authorizer that you get an Allow decision from Amazon Verified Permissions
+5. Check that the authorization token is in the correct format. You can use jwt.io to decode it online.
+

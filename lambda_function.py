@@ -3,6 +3,7 @@ import logging
 import os
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from http import HTTPStatus
 from typing import Dict, List
 
 import requests
@@ -14,6 +15,8 @@ import boto3
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+TENANT_URL = os.environ.get('TENANT_IDENTITY_URL')
+POLICY_STORE_ID = os.environ.get('POLICY_STORE_ID')
 avp_client = boto3.client('verified-permissions')
 
 
@@ -36,25 +39,31 @@ def lambda_handler(event, context) -> Dict:
     # Validate oidc token signature and get the claims in the token.
     token = event['authorizationToken'].replace('Bearer', '').strip()
 
-    verify_oidc_token_signature(token)
+    verify_oidc_token_signature(tenant_url=TENANT_URL, token=token)
     claims = jwt.get_unverified_claims(token)
 
     # Extract token information
-    principalId = claims['sub']
-    logger.info(f'principal: {principalId}')
+    user_id = claims['sub']
+    logger.info(f'principal: {user_id}')
 
     method_arn = event['methodArn']
     apiGatewayMethod = method_arn.split(':')[5].split('/')
+    logger.info(f'method_arn: {method_arn}')
+
+    # Get User attributes
+    user_attributes = _get_user_attributes(tenant_url=TENANT_URL, token=token, user_id=user_id)
+    logger.info(f'user attributes:{user_attributes}')
 
     # Calculating the action as a concatenation of the rest method and resource name
     method = apiGatewayMethod[2]
     resource = apiGatewayMethod[-1]
 
     # Call Amazon Verified Permissions to authorize. The return value is Allow / Deny and can be assigned to the IAM Policy
-    effect = check_authorization(principal_id=claims['sub'], action=method, resource=resource, claims=claims)
+    effect = check_authorization(principal_id=claims['sub'], action=method, resource=resource, claims=claims,
+                                 user_attributes=user_attributes)
 
     # Build the output
-    policy_response = generate_iam_policy(principalId=principalId, effect=effect, resource=method_arn)
+    policy_response = generate_iam_policy(principalId=user_id, effect=effect, resource=method_arn)
     logger.info(f'response: {policy_response}')
 
     return policy_response
@@ -85,10 +94,25 @@ def generate_iam_policy(principalId: str, effect: str, resource: str) -> Dict:
     return policy
 
 
-def _get_identity_tanant_public_key(oidc_token: str, identity_public_key_url: str) -> jwk.Key:
+def _get_user_attributes(tenant_url: str, token: str, user_id: str) -> Dict:
+    # Get User attributes
+    payload = {'Table': 'users', 'ID': user_id}
+    logger.info(f'payload is:{payload}')
+    headers = {'Content-Type': 'application/json', 'Authorization': f'Bearer {token}'}
+    logger.info(f'headers:{headers}')
+    url = f'{tenant_url}ExtData/GetColumns'
+    response = requests.request(method='POST', url=url, json=payload, headers=headers)
+    logger.info(f'Get user attributes response is:{response}')
+    if response.status_code == HTTPStatus.OK:
+        user_attributes = json.loads(response.text)['Result']
+        logger.info(user_attributes)
+        return user_attributes
+
+
+def _get_identity_tanant_public_key(token: str, identity_public_key_url: str) -> jwk.Key:
 
     logger.info(f' request to get token publick key via: {identity_public_key_url}')
-    response = requests.get(url=identity_public_key_url, headers={'Authorization': f'Bearer {oidc_token}'},
+    response = requests.get(url=identity_public_key_url, headers={'Authorization': f'Bearer {token}'},
                             timeout=60)  # it is advised to cache the key results
     logger.info(f'response status is: {response.status_code}')
     if not response.text:
@@ -102,31 +126,26 @@ def _get_identity_tanant_public_key(oidc_token: str, identity_public_key_url: st
     return jwk.construct(key)
 
 
-def verify_oidc_token_signature(oidc_token: str) -> bool:
+def verify_oidc_token_signature(tenant_url: str, token: str) -> bool:
     """
     Validate the oidc_token signature aagainst the CyberArk Identity public key.
     TBD - Validate time
 
     Parameters:
-        oidc_token (str): an OIDC token string which contains the user authentication
+        token (str): an OIDC token string which contains the user authentication
 
     Returns:
         result (bool): True if valid, otherwise raises an exception
 
     Raises:
         Value Error Exception
+        :param tenant_url:
 
     """
 
-    tenant_url = os.environ.get('TENANT_IDENTITY_URL')
-    if not tenant_url:
-        # warning: this is a logic set POC mode, in production you should validate the token signature
-        # to bypass the signature chcek set the identity server as empty
-        return True
     key_url = f'{tenant_url}/OAuth2/Keys/__idaptive_cybr_user_oidc/'
-
-    public_key = _get_identity_tanant_public_key(oidc_token=oidc_token, identity_public_key_url=key_url)
-    message, encoded_sig = oidc_token.rsplit('.', maxsplit=1)
+    public_key = _get_identity_tanant_public_key(token=token, identity_public_key_url=key_url)
+    message, encoded_sig = token.rsplit('.', maxsplit=1)
     decoded_signature = base64url_decode(encoded_sig.encode('utf-8'))
     if not public_key.verify(message.encode('utf8'), decoded_signature):
         raise ValueError('Signature validation with public key failed')
@@ -140,7 +159,7 @@ class Identifier:
     EntityType: str
 
 
-def _get_data_entities(token_claims: Dict) -> List:
+def _get_data_entities(token_claims: Dict, user_attributes: Dict = None) -> List:
     data_entities: List[Dict] = []
     # add roles from token
     for role in token_claims['user_roles']:
@@ -148,21 +167,25 @@ def _get_data_entities(token_claims: Dict) -> List:
 
     # add user and role parents
     user_entity = {'Identifier': asdict(Identifier(EntityType='User', EntityId=token_claims['sub'])), 'Parents': []}
+    if user_attributes:
+        user_attributes_dict = {}
+        for attribute in user_attributes:
+            user_attributes_dict[attribute] = {"String": user_attributes[attribute]}
+        user_entity['Attributes'] = user_attributes_dict
+
     for role in token_claims['user_roles']:
         user_entity['Parents'].append(asdict(Identifier(EntityType='UserGroup', EntityId=role)))
     data_entities.append(user_entity)
     return data_entities
 
 
-def check_authorization(principal_id: str, action: str, resource: str, claims: Dict) -> str:
-    store_id = os.environ.get('POLICY_STORE_ID')
-
+def check_authorization(principal_id: str, action: str, resource: str, claims: Dict, user_attributes: Dict) -> str:
     principal = Identifier(EntityType='User', EntityId=principal_id)
     resource = Identifier(EntityType='Resource', EntityId=resource)
     action = {'ActionType': 'Action', 'ActionId': action}
-    entities = _get_data_entities(claims)
-
-    # add the resource
+    entities = _get_data_entities(token_claims=claims, user_attributes=user_attributes)
+    logger.info(entities)
+    # add the entities to the slice complement
     slice_complement = {'Entities': entities}
     context = {
         'aws_region': {
@@ -180,9 +203,9 @@ def check_authorization(principal_id: str, action: str, resource: str, claims: D
     }
 
     logger.info(
-        f'store id:{store_id}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
+        f'store id:{POLICY_STORE_ID}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
     )
-    authz_response = avp_client.is_authorized(PolicyStoreIdentifier=store_id, Principal=asdict(principal), Resource=asdict(resource),
+    authz_response = avp_client.is_authorized(PolicyStoreIdentifier=POLICY_STORE_ID, Principal=asdict(principal), Resource=asdict(resource),
                                               Action=action, Context=context, SliceComplement=slice_complement)
 
     return authz_response['Decision']
