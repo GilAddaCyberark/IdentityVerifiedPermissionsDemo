@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 
 TENANT_URL = os.environ.get('TENANT_IDENTITY_URL')
 POLICY_STORE_ID = os.environ.get('POLICY_STORE_ID')
-avp_client = boto3.client('verified-permissions')
+avp_client = boto3.client('verifiedpermissions')
 
 
 def lambda_handler(event, context) -> Dict:
@@ -155,57 +155,55 @@ def verify_oidc_token_signature(tenant_url: str, token: str) -> bool:
 
 @dataclass
 class Identifier:
-    EntityId: str
-    EntityType: str
+    entityId: str
+    entityType: str
 
 
 def _get_data_entities(token_claims: Dict, user_attributes: Dict = None) -> List:
     data_entities: List[Dict] = []
     # add roles from token
     for role in token_claims['user_roles']:
-        data_entities.append({'Identifier': asdict(Identifier(EntityType='UserGroup', EntityId=role))})
+        data_entities.append({'identifier': asdict(Identifier(entityType='UserGroup', entityId=role))})
 
     # add user and role parents
-    user_entity = {'Identifier': asdict(Identifier(EntityType='User', EntityId=token_claims['sub'])), 'Parents': []}
+    user_entity = {'identifier': asdict(Identifier(entityType='User', entityId=token_claims['sub'])), 'parents': []}
     if user_attributes:
         user_attributes_dict = {}
         for attribute in user_attributes:
-            user_attributes_dict[attribute] = {"String": user_attributes[attribute]}
-        user_entity['Attributes'] = user_attributes_dict
+            user_attributes_dict[attribute] = {"string": user_attributes[attribute]}
+        user_entity['attributes'] = user_attributes_dict
 
     for role in token_claims['user_roles']:
-        user_entity['Parents'].append(asdict(Identifier(EntityType='UserGroup', EntityId=role)))
+        user_entity['parents'].append(asdict(Identifier(entityType='UserGroup', entityId=role)))
     data_entities.append(user_entity)
     return data_entities
 
 
 def check_authorization(principal_id: str, action: str, resource: str, claims: Dict, user_attributes: Dict) -> str:
-    principal = Identifier(EntityType='User', EntityId=principal_id)
-    resource = Identifier(EntityType='Resource', EntityId=resource)
-    action = {'ActionType': 'Action', 'ActionId': action}
-    entities = _get_data_entities(token_claims=claims, user_attributes=user_attributes)
+    principal = Identifier(entityType='User', entityId=principal_id)
+    resource = Identifier(entityType='Resource', entityId=resource)
+    action = {'actionType': 'Action', 'actionId': action}
+    entities = {'entities': _get_data_entities(token_claims=claims, user_attributes=user_attributes)}
     logger.info(entities)
-    # add the entities to the slice complement
-    slice_complement = {'Entities': entities}
     context = {
         'aws_region': {
-            'String': claims['aws_region']
+            'string': claims['aws_region']
         },
         'last_login_time': {
-            'Long': int(claims['last_login'])
+            'long': int(claims['last_login'])
         },
         'login_time': {
-            'Long': int(datetime.now(timezone.utc).timestamp())
+            'long': int(datetime.now(timezone.utc).timestamp())
         },
         'weekday': {
-            'Long': datetime.now(timezone.utc).weekday()
+            'long': datetime.now(timezone.utc).weekday()
         },
     }
 
     logger.info(
-        f'store id:{POLICY_STORE_ID}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)} context:{context} entities:{slice_complement}'
+        f'store id:{POLICY_STORE_ID}, principal:{asdict(principal)}, action:{action}, resource:{asdict(resource)}, context:{context}, entities:{entities}'
     )
-    authz_response = avp_client.is_authorized(PolicyStoreIdentifier=POLICY_STORE_ID, Principal=asdict(principal), Resource=asdict(resource),
-                                              Action=action, Context=context, SliceComplement=slice_complement)
+    authz_response = avp_client.is_authorized(policyStoreId=POLICY_STORE_ID, principal=asdict(principal), resource=asdict(resource),
+                                              action=action, context=context, entities=entities)
 
-    return authz_response['Decision']
+    return authz_response['decision']
